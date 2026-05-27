@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { supabase } from './supabase'
+import { useState, useEffect } from "react";
 
 const AMBER = "#f5c842";
 const AMBER_DARK = "#3a2000";
@@ -11,56 +12,8 @@ const typeColors = {
   gimon:  { bg: "#FAECE7", border: "#D85A30",  dot: "#D85A30",  text: "#993C1D"  },
 };
 
-const posts = [
-  {
-    id: 1, x: 22, y: 28, type: "kando", emoji: "🤩", label: "感動",
-    user: "田中 さくら", userInitial: "田", userColor: "#fff8e0", userTextColor: AMBER_MID,
-    time: "今日 09:32", loc: "大阪駅",
-    body: "駅のホームで見知らぬ人が困っていたら、みんなが自然に助けていた。",
-    naze: [
-      { q: "なぜそう感じた？",         a: "助け合いの本能が日常でも生きていると感じたから。" },
-      { q: "なぜそれが嬉しかった？",   a: "効率より人を優先できる社会が存在すると実感できたから。" },
-      { q: "本当に大切にしてること？", a: "自分も「やさしくある」ことを人生の軸にしていると気づいたから。" },
-    ],
-    likes: 5, comments: 2,
-  },
-  {
-    id: 2, x: 55, y: 50, type: "action", emoji: "🎯", label: "行動",
-    user: "山本 けんじ", userInitial: "山", userColor: "#EEEDFE", userTextColor: "#534AB7",
-    time: "昨日 17:10", loc: "中之島",
-    body: "初対面の人に自分から話しかけた。",
-    naze: [
-      { q: "なぜそのアクションをとった？", a: "後悔するのは行動しなかったときだと知っているから。" },
-      { q: "なぜそれを知っている？",       a: "過去に黙って後悔した経験が何度もあるから。" },
-      { q: "本当に大切にしてること？",     a: "つながりを自分からつくれる人間でありたいから。" },
-    ],
-    likes: 8, comments: 4,
-  },
-  {
-    id: 3, x: 35, y: 68, type: "kizuki", emoji: "💡", label: "気づき",
-    user: "佐藤 めい", userInitial: "佐", userColor: "#E1F5EE", userTextColor: "#0F6E56",
-    time: "2日前 08:15", loc: "心斎橋",
-    body: "毎朝同じ場所でコーヒーを飲むことが、自分を整える儀式になっていた。",
-    naze: [
-      { q: "なぜそれが儀式になった？",   a: "ルーティンが心の安定をつくっていると気づいたから。" },
-      { q: "なぜ安定が必要？",           a: "変化の多い日々の中で、自分らしくいるための拠り所が必要だから。" },
-      { q: "本当に大切にしてること？",   a: "どんな環境でも自分の軸を守り続けることを大切にしているから。" },
-    ],
-    likes: 12, comments: 3,
-  },
-  {
-    id: 4, x: 70, y: 35, type: "gimon", emoji: "❓", label: "疑問",
-    user: "中村 りょう", userInitial: "中", userColor: "#FAECE7", userTextColor: "#993C1D",
-    time: "3日前 14:22", loc: "梅田",
-    body: "なぜ人は「忙しい」を言い訳にして、本当にやりたいことを後回しにするのか。",
-    naze: [
-      { q: "なぜ気になった？",           a: "自分自身もそのパターンにはまっていると気づいたから。" },
-      { q: "なぜそのパターンに陥る？",   a: "「今じゃなくていい」という思考が楽だから選んでしまうから。" },
-      { q: "本当に大切にしてること？",   a: "今この瞬間に誠実に生きることを自分に課したいから。" },
-    ],
-    likes: 6, comments: 1,
-  },
-];
+const typeEmoji = { kando: "🤩", action: "🎯", kizuki: "💡", gimon: "❓" };
+const typeLabel = { kando: "感動", action: "行動", kizuki: "気づき", gimon: "疑問" };
 
 function WantaroSVG({ size = 40 }) {
   return (
@@ -100,7 +53,7 @@ function TopBar({ title, right, onBack }) {
   );
 }
 
-function BottomNav({ active, onChange, onPost }) {
+function BottomNav({ active, onChange }) {
   const tabs = [
     { id: "map",  icon: "🗺️", label: "地図" },
     { id: "team", icon: "👥", label: "チーム" },
@@ -128,7 +81,8 @@ function NazeChain({ naze }) {
       {naze.map((item, i) => (
         <div key={i} style={{ display: "flex", gap: 9, marginBottom: i < naze.length - 1 ? 8 : 0 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-            <div style={{ width: 18, height: 18, borderRadius: "50%", background: i === naze.length - 1 ? AMBER_DARK : AMBER,
+            <div style={{ width: 18, height: 18, borderRadius: "50%",
+              background: i === naze.length - 1 ? AMBER_DARK : AMBER,
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 9, fontWeight: 500, color: i === naze.length - 1 ? AMBER : AMBER_DARK }}>
               {i + 1}
@@ -137,16 +91,13 @@ function NazeChain({ naze }) {
               <div style={{ width: 1.5, flex: 1, background: AMBER, opacity: 0.35, margin: "3px 0" }} />
             )}
           </div>
-          <div style={{
-            flex: 1, borderRadius: 10, padding: "8px 10px",
+          <div style={{ flex: 1, borderRadius: 10, padding: "8px 10px",
             background: i === naze.length - 1 ? "#fff8e0" : "#fffcf5",
-            border: `1px solid ${i === naze.length - 1 ? AMBER : "#ecdca0"}`,
-            marginBottom: 0,
-          }}>
+            border: `1px solid ${i === naze.length - 1 ? AMBER : "#ecdca0"}` }}>
             <div style={{ fontSize: 10, color: AMBER_MID, fontWeight: 500, marginBottom: 3 }}>
-              {i === naze.length - 1 ? "🔑 本質" : `なぜ ${i + 1}`} · {item.q}
+              {i === naze.length - 1 ? "🔑 本質" : `なぜ ${i + 1}`}
             </div>
-            <div style={{ fontSize: 12, color: "#3a2000", lineHeight: 1.6 }}>{item.a}</div>
+            <div style={{ fontSize: 12, color: "#3a2000", lineHeight: 1.6 }}>{item}</div>
           </div>
         </div>
       ))}
@@ -155,85 +106,90 @@ function NazeChain({ naze }) {
 }
 
 function PostCard({ post, onExpand, expanded }) {
-  const c = typeColors[post.type];
+  const c = typeColors[post.type] || typeColors.kando;
+  const emoji = typeEmoji[post.type] || "🤩";
+  const label = typeLabel[post.type] || "感動";
+  const naze = [post.naze1, post.naze2, post.naze3].filter(Boolean);
+  const initial = post.user ? post.user[0] : "？";
+
   return (
     <div style={{ background: "#fff", borderRadius: 18, border: "0.5px solid #ecdca0", overflow: "hidden" }}>
-      {/* header */}
       <div style={{ padding: "12px 14px 0" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: post.userColor,
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: c.bg,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12, fontWeight: 500, color: post.userTextColor, border: "1px solid #ecdca0", flexShrink: 0 }}>
-            {post.userInitial}
+            fontSize: 12, fontWeight: 500, color: c.text, border: "1px solid #ecdca0", flexShrink: 0 }}>
+            {initial}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#3a2000" }}>{post.user}</div>
-            <div style={{ fontSize: 10, color: "#a09070" }}>{post.loc} · {post.time}</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#3a2000" }}>{post.user || "匿名"}</div>
+            <div style={{ fontSize: 10, color: "#a09070" }}>{new Date(post.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
           </div>
           <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 99,
-            padding: "3px 9px", fontSize: 11, color: c.text, fontWeight: 500, display: "flex", alignItems: "center", gap: 4 }}>
-            {post.emoji} {post.label}
+            padding: "3px 9px", fontSize: 11, color: c.text, fontWeight: 500 }}>
+            {emoji} {label}
           </div>
         </div>
 
         <div style={{ fontSize: 13, color: "#3a2000", lineHeight: 1.65, marginBottom: 10 }}>{post.body}</div>
 
-        {/* なぜプレビュー or 展開 */}
-        {!expanded ? (
-          <div onClick={() => onExpand(post.id)}
-            style={{ background: "#fffbf0", border: "1px solid #f0e0a0", borderRadius: 10,
-              padding: "8px 11px", cursor: "pointer", marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-              <WantaroSVG size={20} />
-              <span style={{ fontSize: 11, color: AMBER_MID, fontWeight: 500 }}>わんたろうと深掘り（なぜ×3）</span>
-              <span style={{ fontSize: 10, color: "#c0a060", marginLeft: "auto" }}>タップで開く ▾</span>
+        {naze.length > 0 && (
+          !expanded ? (
+            <div onClick={() => onExpand(post.id)}
+              style={{ background: "#fffbf0", border: "1px solid #f0e0a0", borderRadius: 10,
+                padding: "8px 11px", cursor: "pointer", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                <WantaroSVG size={20} />
+                <span style={{ fontSize: 11, color: AMBER_MID, fontWeight: 500 }}>わんたろうと深掘り（なぜ×{naze.length}）</span>
+                <span style={{ fontSize: 10, color: "#c0a060", marginLeft: "auto" }}>タップで開く ▾</span>
+              </div>
+              <div style={{ fontSize: 12, color: "#8a6010", lineHeight: 1.5 }}>
+                🔑 {naze[naze.length - 1]}
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: "#8a6010", lineHeight: 1.5 }}>
-              🔑 {post.naze[post.naze.length - 1].a}
+          ) : (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+                <WantaroSVG size={22} />
+                <span style={{ fontSize: 11, color: AMBER_MID, fontWeight: 500 }}>わんたろうと深掘り</span>
+                <button onClick={() => onExpand(null)}
+                  style={{ fontSize: 10, color: "#c0a060", marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                  閉じる ▴
+                </button>
+              </div>
+              <NazeChain naze={naze} />
             </div>
-          </div>
-        ) : (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-              <WantaroSVG size={22} />
-              <span style={{ fontSize: 11, color: AMBER_MID, fontWeight: 500 }}>わんたろうと深掘り</span>
-              <button onClick={() => onExpand(null)}
-                style={{ fontSize: 10, color: "#c0a060", marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                閉じる ▴
-              </button>
-            </div>
-            <NazeChain naze={post.naze} />
-          </div>
+          )
         )}
       </div>
-
-      {/* footer actions */}
-      <div style={{ display: "flex", alignItems: "center", padding: "8px 14px 12px",
-        borderTop: "0.5px solid #f5ead0", gap: 0 }}>
-        <button style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12,
-          color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginRight: 16 }}>
-          ❤️ <span>{post.likes}</span>
-        </button>
-        <button style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12,
-          color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginRight: 16 }}>
-          💬 <span>{post.comments}</span>
-        </button>
-        <button style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12,
-          color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-          🔗 シェア
-        </button>
-        <button style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
-          fontSize: 12, color: AMBER_MID, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-          🐾 さらに深掘り
-        </button>
+      <div style={{ display: "flex", alignItems: "center", padding: "8px 14px 12px", borderTop: "0.5px solid #f5ead0" }}>
+        <button style={{ fontSize: 12, color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginRight: 16 }}>❤️ いいね</button>
+        <button style={{ fontSize: 12, color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>💬 コメント</button>
+        <button style={{ marginLeft: "auto", fontSize: 12, color: AMBER_MID, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>🐾 さらに深掘り</button>
       </div>
     </div>
   );
 }
 
-function TeamFeed({ onPost }) {
+function TeamFeed() {
+  const [posts, setPosts] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  async function fetchPosts() {
+    setLoading(true);
+    const { data } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setPosts(data);
+    setLoading(false);
+  }
 
   const filters = [
     { id: "all",    label: "すべて" },
@@ -247,9 +203,7 @@ function TeamFeed({ onPost }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
-      {/* filter chips */}
-      <div style={{ padding: "10px 14px 8px", display: "flex", gap: 6, overflowX: "auto",
-        borderBottom: "0.5px solid #f0e0a0", flexShrink: 0 }}>
+      <div style={{ padding: "10px 14px 8px", display: "flex", gap: 6, overflowX: "auto", borderBottom: "0.5px solid #f0e0a0", flexShrink: 0 }}>
         {filters.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
             style={{ padding: "5px 12px", borderRadius: 99, border: `1px solid ${filter === f.id ? AMBER : "#ecdca0"}`,
@@ -261,25 +215,30 @@ function TeamFeed({ onPost }) {
         ))}
       </div>
 
-      {/* わんたろうひとこと */}
       <div style={{ margin: "10px 14px 2px", background: "#fffbf0", border: "1px solid #f0e0a0",
         borderRadius: 14, padding: "9px 12px", display: "flex", gap: 9, alignItems: "center", flexShrink: 0 }}>
         <WantaroSVG size={34} />
         <div>
           <div style={{ fontSize: 10, color: AMBER_MID, fontWeight: 500, marginBottom: 2 }}>わんたろうより</div>
-          <div style={{ fontSize: 12, color: AMBER_DARK, lineHeight: 1.5 }}>
-            みんなの「なぜ」を読んで、あなたはどう思う？🐾
-          </div>
+          <div style={{ fontSize: 12, color: AMBER_DARK, lineHeight: 1.5 }}>みんなの「なぜ」を読んで、あなたはどう思う？🐾</div>
         </div>
       </div>
 
-      {/* posts */}
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 14px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {filtered.map(post => (
-          <PostCard key={post.id} post={post}
-            expanded={expanded === post.id}
-            onExpand={(id) => setExpanded(expanded === id ? null : id)} />
-        ))}
+        {loading ? (
+          <div style={{ textAlign: "center", color: "#c0a060", paddingTop: 40 }}>読み込み中…</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#c0a060", paddingTop: 40 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🐾</div>
+            <div>まだ投稿がありません</div>
+          </div>
+        ) : (
+          filtered.map(post => (
+            <PostCard key={post.id} post={post}
+              expanded={expanded === post.id}
+              onExpand={(id) => setExpanded(expanded === id ? null : id)} />
+          ))
+        )}
       </div>
     </div>
   );
@@ -287,6 +246,20 @@ function TeamFeed({ onPost }) {
 
 function MapScreen({ onPost }) {
   const [selectedPin, setSelectedPin] = useState(null);
+  const [pins, setPins] = useState([]);
+
+  useEffect(() => {
+    async function fetchPins() {
+      const { data } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(10);
+      if (data) setPins(data);
+    }
+    fetchPins();
+  }, []);
+
+  const pinPositions = [
+    { x: 22, y: 28 }, { x: 55, y: 50 }, { x: 35, y: 68 },
+    { x: 70, y: 35 }, { x: 48, y: 20 }, { x: 15, y: 55 },
+  ];
 
   return (
     <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
@@ -296,36 +269,36 @@ function MapScreen({ onPost }) {
         {[
           { w: 70, h: 44, t: 5, l: 3 }, { w: 52, h: 60, t: 4, l: 35 }, { w: 44, h: 38, t: 4, l: 60 },
           { w: 58, h: 36, t: 60, l: 2 }, { w: 40, h: 52, t: 58, l: 35 }, { w: 50, h: 40, t: 60, l: 60 },
-          { w: 62, h: 30, t: 38, l: 2 }, { w: 44, h: 34, t: 36, l: 58 },
         ].map((b, i) => (
           <div key={i} style={{ position: "absolute", top: `${b.t}%`, left: `${b.l}%`, width: b.w, height: b.h, background: "#bcd0e0", borderRadius: 5 }} />
         ))}
       </div>
 
-      {posts.map(pin => {
-        const c = typeColors[pin.type];
+      {pins.map((pin, i) => {
+        const pos = pinPositions[i % pinPositions.length];
+        const c = typeColors[pin.type] || typeColors.kando;
+        const emoji = typeEmoji[pin.type] || "🤩";
+        const label = typeLabel[pin.type] || "感動";
         return (
           <div key={pin.id} onClick={() => setSelectedPin(pin)}
-            style={{ position: "absolute", left: `${pin.x}%`, top: `${pin.y}%`,
+            style={{ position: "absolute", left: `${pos.x}%`, top: `${pos.y}%`,
               display: "flex", flexDirection: "column", alignItems: "center",
               cursor: "pointer", transform: "translateX(-50%)", zIndex: 5 }}>
             <div style={{ width: 36, height: 36, borderRadius: "50%", background: c.dot,
               border: "3px solid #fff", display: "flex", alignItems: "center",
               justifyContent: "center", fontSize: 17, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-              {pin.emoji}
+              {emoji}
             </div>
             <div style={{ background: "#fff", borderRadius: 8, padding: "2px 8px", fontSize: 10,
-              fontWeight: 500, color: AMBER_DARK, marginTop: 3,
-              border: "0.5px solid #e8d080", whiteSpace: "nowrap" }}>
-              {pin.label}
+              fontWeight: 500, color: AMBER_DARK, marginTop: 3, border: "0.5px solid #e8d080", whiteSpace: "nowrap" }}>
+              {label}
             </div>
           </div>
         );
       })}
 
       <div style={{ position: "absolute", bottom: 70, left: 12, right: 60, background: "#fffcf5",
-        borderRadius: 18, padding: "10px 12px", border: "1px solid #f0d890",
-        display: "flex", gap: 10, alignItems: "center" }}>
+        borderRadius: 18, padding: "10px 12px", border: "1px solid #f0d890", display: "flex", gap: 10, alignItems: "center" }}>
         <WantaroSVG size={38} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 10, color: AMBER_MID, fontWeight: 500, marginBottom: 2 }}>わんたろう</div>
@@ -337,9 +310,7 @@ function MapScreen({ onPost }) {
         style={{ position: "absolute", bottom: 14, right: 14, width: 48, height: 48,
           borderRadius: "50%", background: AMBER, border: "3px solid #fff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 26, cursor: "pointer", zIndex: 6 }}>
-        ＋
-      </button>
+          fontSize: 26, cursor: "pointer", zIndex: 6 }}>＋</button>
 
       {selectedPin && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(58,32,0,0.3)",
@@ -349,24 +320,8 @@ function MapScreen({ onPost }) {
             padding: "18px 16px 28px", maxHeight: "78%", overflowY: "auto" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ width: 36, height: 4, background: "#e0d0a0", borderRadius: 99, margin: "0 auto 14px" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <div style={{ background: typeColors[selectedPin.type].bg, border: `1.5px solid ${typeColors[selectedPin.type].border}`,
-                borderRadius: 99, padding: "3px 10px", fontSize: 12, color: typeColors[selectedPin.type].text, fontWeight: 500 }}>
-                {selectedPin.emoji} {selectedPin.label}
-              </div>
-              <span style={{ fontSize: 11, color: "#a09070" }}>{selectedPin.loc} · {selectedPin.time}</span>
-            </div>
             <div style={{ fontSize: 14, color: "#3a2000", lineHeight: 1.65, marginBottom: 12, fontWeight: 500 }}>{selectedPin.body}</div>
-            <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 10 }}>
-              <WantaroSVG size={24} />
-              <span style={{ fontSize: 12, color: AMBER_MID, fontWeight: 500 }}>わんたろうと深掘り</span>
-            </div>
-            <NazeChain naze={selectedPin.naze} />
-            <div style={{ display: "flex", gap: 14, marginTop: 14, paddingTop: 12, borderTop: "0.5px solid #f0e0a0" }}>
-              <button style={{ fontSize: 13, color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>❤️ {selectedPin.likes}</button>
-              <button style={{ fontSize: 13, color: "#a09070", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>💬 {selectedPin.comments}</button>
-              <button style={{ fontSize: 13, color: AMBER_MID, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>🐾 さらに深掘り</button>
-            </div>
+            <NazeChain naze={[selectedPin.naze1, selectedPin.naze2, selectedPin.naze3].filter(Boolean)} />
           </div>
         </div>
       )}
@@ -374,11 +329,13 @@ function MapScreen({ onPost }) {
   );
 }
 
-function PostScreen({ onBack }) {
+function PostScreen({ onBack, onPosted }) {
   const [type, setType] = useState("kando");
+  const [user, setUser] = useState("");
   const [body, setBody] = useState("");
   const [naze, setNaze] = useState(["", "", ""]);
   const [shared, setShared] = useState(true);
+  const [posting, setPosting] = useState(false);
 
   const types = [
     { id: "kando",  emoji: "🤩", label: "感動した" },
@@ -392,12 +349,44 @@ function PostScreen({ onBack }) {
     "本当は何を大切にしてるの？",
   ];
 
+  async function handlePost() {
+    if (!body.trim()) return;
+    setPosting(true);
+    await supabase.from('posts').insert([{
+      type,
+      username: user || "匿名",
+      body,
+      naze1: naze[0],
+      naze2: naze[1],
+      naze3: naze[2],
+      shared,
+    }]);
+    setPosting(false);
+    onPosted();
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <TopBar title="新しい記録" onBack={onBack}
-        right={<button onClick={onBack} style={{ background: AMBER_DARK, color: AMBER, fontSize: 12, fontWeight: 500, border: "none", borderRadius: 99, padding: "7px 16px", cursor: "pointer", fontFamily: "inherit" }}>投稿する</button>} />
+        right={
+          <button onClick={handlePost} disabled={posting}
+            style={{ background: AMBER_DARK, color: AMBER, fontSize: 12, fontWeight: 500,
+              border: "none", borderRadius: 99, padding: "7px 16px", cursor: "pointer", fontFamily: "inherit",
+              opacity: posting ? 0.6 : 1 }}>
+            {posting ? "投稿中…" : "投稿する"}
+          </button>
+        } />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 32px", display: "flex", flexDirection: "column", gap: 18, background: "#fffcf5" }}>
+
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 500, color: AMBER_MID, letterSpacing: "0.7px", marginBottom: 8 }}>あなたの名前</div>
+          <input value={user} onChange={e => setUser(e.target.value)} placeholder="名前を入力（省略可）"
+            style={{ width: "100%", border: "1px solid #ecdca0", borderRadius: 12, padding: "10px 12px",
+              fontSize: 13, color: "#3a2000", background: "#fff", fontFamily: "inherit", outline: "none" }} />
+        </div>
+
+        <div style={{ height: 1, background: "#f0e0a0", opacity: 0.6 }} />
 
         <div>
           <div style={{ fontSize: 10, fontWeight: 500, color: AMBER_MID, letterSpacing: "0.7px", marginBottom: 8 }}>どんな記録？</div>
@@ -443,9 +432,7 @@ function PostScreen({ onBack }) {
                   <div style={{ width: 20, height: 20, borderRadius: "50%",
                     background: i === 2 ? AMBER_DARK : AMBER,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, fontWeight: 500, color: i === 2 ? AMBER : AMBER_DARK }}>
-                    {i + 1}
-                  </div>
+                    fontSize: 10, fontWeight: 500, color: i === 2 ? AMBER : AMBER_DARK }}>{i + 1}</div>
                   {i < 2 && <div style={{ width: 1.5, flex: 1, background: AMBER, opacity: 0.4, margin: "3px 0" }} />}
                 </div>
                 <div style={{ flex: 1 }}>
@@ -474,7 +461,7 @@ function PostScreen({ onBack }) {
             <span style={{ fontSize: 13, color: "#3a2000" }}>👥 チームに公開する</span>
             <div onClick={() => setShared(!shared)}
               style={{ width: 40, height: 24, borderRadius: 99, background: shared ? AMBER : "#e0d0b0",
-                position: "relative", cursor: "pointer", transition: "background 0.2s" }}>
+                position: "relative", cursor: "pointer" }}>
               <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff",
                 position: "absolute", top: 3, right: shared ? 3 : "auto", left: shared ? "auto" : 3 }} />
             </div>
@@ -489,11 +476,16 @@ export default function NazeLog() {
   const [activeTab, setActiveTab] = useState("map");
   const [showPost, setShowPost] = useState(false);
 
+  function handlePosted() {
+    setShowPost(false);
+    setActiveTab("team");
+  }
+
   if (showPost) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: "24px 0", minHeight: 640 }}>
         <div style={{ width: 360, height: 740, background: "#fffcf5", borderRadius: 36, overflow: "hidden", border: "0.5px solid #e8d8a0", display: "flex", flexDirection: "column" }}>
-          <PostScreen onBack={() => setShowPost(false)} />
+          <PostScreen onBack={() => setShowPost(false)} onPosted={handlePosted} />
         </div>
       </div>
     );
@@ -502,27 +494,21 @@ export default function NazeLog() {
   return (
     <div style={{ display: "flex", justifyContent: "center", padding: "24px 0", minHeight: 640 }}>
       <div style={{ width: 360, height: 740, background: "#fffcf5", borderRadius: 36, overflow: "hidden", border: "0.5px solid #e8d8a0", display: "flex", flexDirection: "column", fontFamily: "var(--font-sans)" }}>
-
         <TopBar title="なぜログ"
-          right={
-            <div style={{ display: "flex", gap: 14, fontSize: 20 }}>
-              <span style={{ cursor: "pointer" }}>🔔</span>
-              <span style={{ cursor: "pointer" }}>👤</span>
-            </div>
-          }
-        />
+          right={<div style={{ display: "flex", gap: 14, fontSize: 20 }}>
+            <span style={{ cursor: "pointer" }}>🔔</span>
+            <span style={{ cursor: "pointer" }}>👤</span>
+          </div>} />
 
-        {activeTab === "map" && <MapScreen onPost={() => setShowPost(true)} />}
-        {activeTab === "team" && (
-          <TeamFeed onPost={() => setShowPost(true)} />
-        )}
-        {activeTab === "log" && (
+        {activeTab === "map"  && <MapScreen onPost={() => setShowPost(true)} />}
+        {activeTab === "team" && <TeamFeed />}
+        {activeTab === "log"  && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: "#c0a060" }}>
             <span style={{ fontSize: 40 }}>📋</span>
             <span style={{ fontSize: 14 }}>ログ画面（準備中）</span>
           </div>
         )}
-        {activeTab === "wan" && (
+        {activeTab === "wan"  && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, color: "#c0a060" }}>
             <WantaroSVG size={80} />
             <span style={{ fontSize: 14 }}>わんたろう画面（準備中）</span>
