@@ -137,35 +137,29 @@ ${prevAnswers.length > 0 ? `\nこれまでの回答：\n${prevAnswers.map((a, i)
 });
 const data = await res.json();
 return data.text || "どうしてそう思ったの？🐾";
+    } catch {                              // ← catchを追加
+      return "どうしてそう思ったの？🐾";
     }
   }
 
   async function generateSummary(allAnswers) {
-    try {
-      const res = await fetch("/api/chat", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    system: `あなたは「わんたろう」という名前のかわいいゴールデン犬のAIキャラクターです。
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system: `あなたは「わんたろう」という名前のかわいいゴールデン犬のAIキャラクターです。
 ユーザーが3回の深掘りを終えました。温かく褒めて、気づいた価値観を一言でまとめてください。
 語尾は「〜ワン！」など犬らしく。絵文字2〜3個。2文以内。`,
-    userMessage: `体験：${body}\n回答1：${allAnswers[0]}\n回答2：${allAnswers[1]}\n回答3：${allAnswers[2]}`,
-  }),
-});
-const data = await res.json();
-return data.text || "深掘り完了！すごい気づきだったワン🐾✨";
-          messages: [{
-            role: "user",
-            content: `体験：${body}\n回答1：${allAnswers[0]}\n回答2：${allAnswers[1]}\n回答3：${allAnswers[2]}`
-          }],
-        }),
-      });
-      const data = await res.json();
-      return data.content?.[0]?.text || "深掘り完了！すごい気づきだったワン🐾✨";
-    } catch {
-      return "深掘り完了！すごい気づきだったワン🐾✨";
-    }
+        userMessage: `体験：${body}\n回答1：${allAnswers[0]}\n回答2：${allAnswers[1]}\n回答3：${allAnswers[2]}`,
+      }),
+    });
+    const data = await res.json();
+    return data.text || "深掘り完了！すごい気づきだったワン🐾✨";
+  } catch {
+    return "深掘り完了！すごい気づきだったワン🐾✨";
   }
+}
 
   async function startChat() {
     setLoading(true);
