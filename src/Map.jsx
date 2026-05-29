@@ -53,4 +53,5 @@ export default function Map({ posts, onPinClick }) {
     });
   }, [posts]);
 
-  return <div ref={mapContainer} style={{ width: "
+  return <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />;
+}
